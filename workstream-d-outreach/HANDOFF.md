@@ -272,8 +272,12 @@ Stored in `.env.local` (gitignored, never commit). **Set:** `INSFORGE_PROJECT_UR
      secret → `RESEND_WEBHOOK_SECRET`. No DNS work outstanding.
 4. **Swap `MemStore` → A's InsForge store**; smoke-test one lead through the full
    loop on a real machine.
-5. **Cal.com booking link** with `metadata.leadId` so bookings map deterministically
-   (from-email fallback already works).
+5. ~~**Cal.com booking link** with `metadata.leadId`.~~ ✅ **DONE** — `bookingLinkFor(lead, base)`
+   (triage.ts) appends `metadata[leadId]` (→ `payload.metadata.leadId` in BOOKING_CREATED)
+   plus prefilled `email`/`name`; wired into every draft (mock, gateway, Band). Webhook maps
+   via `metadata.leadId` then attendee-email fallback. **Remaining:** set `CALCOM_LINK` to your
+   real Cal.com event + `CALCOM_WEBHOOK_SECRET`, and add the webhook in the Cal.com dashboard
+   → the deployed `/api/webhooks/calcom` URL.
 6. **Delete the mock paths** for the graded demo per honesty rules (keep them behind
    the env flag until the real path is proven).
 
