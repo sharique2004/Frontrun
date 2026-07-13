@@ -19,6 +19,7 @@
  */
 
 import { LeadStatus, type Lead, type OutreachStatus, type SendProvider, type StoreProvider } from "@shared/types"
+import type { InboundFetcher } from "./webhooks"
 
 // ---------------------------------------------------------------------------
 // Options
@@ -132,6 +133,38 @@ export function createSendProvider(opts: SendOptions = {}): SendProvider {
 /** Convenience: send one lead with ad-hoc options. */
 export function send(lead: Lead, opts: SendOptions = {}): Promise<OutreachStatus> {
   return createSendProvider(opts).send(lead)
+}
+
+/**
+ * Default `InboundFetcher`: pull a received email's body from Resend's
+ * Received-emails API (`GET /emails/receiving/:id`) — the `email.received`
+ * webhook itself carries only metadata. Returns `undefined` when no key is
+ * configured (so the webhook simply triages whatever inline text it has).
+ */
+export function createResendInboundFetcher(
+  opts: { apiKey?: string; apiBase?: string; fetchImpl?: typeof fetch } = {},
+): InboundFetcher | undefined {
+  const apiKey = opts.apiKey ?? env("RESEND_API_KEY")
+  const fetchImpl = opts.fetchImpl ?? (globalThis.fetch as typeof fetch)
+  const apiBase = opts.apiBase ?? "https://api.resend.com"
+  if (!apiKey || !fetchImpl) return undefined
+  return async (emailId: string) => {
+    try {
+      const res = await fetchImpl(`${apiBase}/emails/receiving/${emailId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
+      if (!res.ok) return null
+      const d: any = await res.json()
+      return {
+        text: d?.text ?? undefined,
+        html: d?.html ?? undefined,
+        from: d?.from,
+        subject: d?.subject,
+      }
+    } catch {
+      return null
+    }
+  }
 }
 
 /**

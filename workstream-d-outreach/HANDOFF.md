@@ -252,8 +252,17 @@ Stored in `.env.local` (gitignored, never commit). **Set:** `INSFORGE_PROJECT_UR
    Cal.com=HMAC) over the raw body → parse → dispatch → 200/400/401/500. Dev-bypass
    when no secret set. Covered by `routes.test.ts` (in `test:d`). **Remaining:** C/A
    create the two `route.ts` files wiring in A's store + `bandTriageRunner()`.
-3. **Resend domain + inbound MX** (external, blocking for real replies). Set
-   `RESEND_FROM_EMAIL`; confirm inbound routing delivers `email.received`.
+3. **Resend domain + inbound** — 🟡 mostly done (2026-07-13):
+   - Domain `vivek-patel.xyz` **verified for sending**; `RESEND_FROM_EMAIL=dana@vivek-patel.xyz` set.
+   - **Receiving enabled via API** (`PATCH /domains/{id}` capabilities.receiving).
+   - **Code:** `email.received` is metadata-only, so `onInboundReply` now fetches the
+     body via the Received-emails API (`GET /emails/receiving/{id}`) behind an
+     injectable `WebhookDeps.fetchInbound` (`createResendInboundFetcher`, auto-wired
+     in `createResendRoute`). Covered by `routes.test.ts`.
+   - **You still must (external):** (a) add the MX record — `@` → `inbound-smtp.us-east-1.amazonaws.com`
+     priority 10 (lowest) at the DNS registrar (status `pending` until then); (b) deploy the app
+     (or tunnel) so `/api/webhooks/resend` is public; (c) Resend dashboard → Webhooks → add that
+     URL, select `email.received` + delivery events, copy the signing secret → `RESEND_WEBHOOK_SECRET`.
 4. **Swap `MemStore` → A's InsForge store**; smoke-test one lead through the full
    loop on a real machine.
 5. **Cal.com booking link** with `metadata.leadId` so bookings map deterministically
