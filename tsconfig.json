@@ -16,7 +16,7 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["shared", "workstream-*"],
+  "include": ["shared/**/*", "workstream-*/**/*"],
   "exclude": [
     "node_modules",
     "**/node_modules",
