@@ -17,5 +17,10 @@
     }
   },
   "include": ["shared/**/*", "workstream-*/**/*"],
-  "exclude": ["node_modules", "**/node_modules", "**/.next"]
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "**/.next",
+    "workstream-c-frontend"
+  ]
 }

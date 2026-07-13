@@ -6,6 +6,7 @@ node_modules/
 
 # Env / secrets
 .env
+.env.*
 .env.local
 .env*.local
 *.pem
