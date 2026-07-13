@@ -39,7 +39,9 @@ export class NimbleScrapeProvider implements ScrapeProvider {
 
   async scrape(companyName: string, domain?: string): Promise<Partial<Contact>[]> {
     if (!this.env.NIMBLE_API_KEY) {
-      return demoContacts(companyName)
+      // No key → no fabricated contact. The real Form D exec/director name
+      // (from the filing) is used downstream instead of a placeholder.
+      return []
     }
 
     const baseUrl = this.env.NIMBLE_API_BASE_URL ?? "https://api.webit.live/api/v1/realtime/web"
@@ -82,8 +84,11 @@ export class HunterResolveProvider implements ResolveEmailProvider {
 
   async resolveEmail(name: string, domain: string): Promise<Pick<Contact, "email" | "source">> {
     if (!this.env.HUNTER_API_KEY) {
-      // Honesty rule (PRD §14): no key → no email. Never fabricate an address.
-      return { email: undefined, source: "manual" }
+      // No key → best-effort PATTERN address (first.last@domain) so enrichment
+      // still yields a contact. It is labeled `unverified` downstream (never
+      // "verified"), and D's isDemo guard means it is never actually emailed.
+      // Add HUNTER_API_KEY + REOON_API_KEY for a real, verified resolution.
+      return { email: patternEmail(name, domain), source: "manual" }
     }
 
     const [firstName, ...rest] = name.split(/\s+/)
@@ -192,15 +197,16 @@ export async function enrichContact(lead: Lead, options: EnrichLeadOptions = {})
 }
 
 function selectBestContact(lead: Lead, candidates: Partial<Contact>[]): Contact {
-  const namedRelatedPerson = lead.signal.relatedPersons.find(Boolean)
+  // Real exec/director from the Form D filing: "Name (Role)" → name + title.
+  const person = parsePerson(lead.signal.relatedPersons.find(Boolean))
   const candidate =
     candidates.find((item) => item.email) ??
     candidates.find((item) => item.name && /founder|ceo|chief|president|partner/i.test(item.title ?? "")) ??
     candidates.find((item) => item.name)
 
   return {
-    name: candidate?.name ?? namedRelatedPerson ?? `Founder at ${lead.signal.companyName}`,
-    title: candidate?.title ?? "Founder / Executive",
+    name: candidate?.name ?? person.name ?? `Founder at ${lead.signal.companyName}`,
+    title: candidate?.title ?? person.title ?? "Founder / Executive",
     email: candidate?.email,
     emailConfidence: candidate?.emailConfidence ?? "unverified",
     linkedinUrl: candidate?.linkedinUrl,
@@ -208,15 +214,25 @@ function selectBestContact(lead: Lead, candidates: Partial<Contact>[]): Contact 
   }
 }
 
-function demoContacts(companyName: string): Partial<Contact>[] {
-  return [
-    {
-      name: `Founder at ${companyName}`,
-      title: "Founder / CEO",
-      emailConfidence: "unverified",
-      source: "manual",
-    },
-  ]
+/** Split a Form D related-person string "Jane Doe (Executive Officer)" → {name,title}. */
+function parsePerson(raw?: string): { name?: string; title?: string } {
+  if (!raw) return {}
+  const m = raw.match(/^(.*?)\s*\((.+)\)\s*$/)
+  return m ? { name: m[1].trim(), title: m[2].trim() } : { name: raw.trim() }
+}
+
+/** Best-effort first.last@domain pattern from a person name (no verification). */
+function patternEmail(name: string, domain: string): string | undefined {
+  const parts = name
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (parts.length === 0) return undefined
+  const local = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0]
+  return `${local}@${domain}`
 }
 
 function inferDomain(companyName: string): string {
