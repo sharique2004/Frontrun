@@ -75,8 +75,10 @@ async def run_rocketride(args: argparse.Namespace) -> dict[str, Any]:
         pipe = json.loads(Path(args.pipeline).read_text())
         validation = await client.validate(pipe)
 
-        # 2) Deploy + feed the lead through the drafting agent.
-        used = await client.use(filepath=str(args.pipeline), ttl=180)
+        # 2) Deploy + feed the lead through the drafting agent. Pass the LLM
+        #    key(s) as pipeline env so ${ROCKETRIDE_OPENAI_KEY} substitutes reliably.
+        llm_env = {v: os.environ[v] for v in LLM_KEY_VARS if os.getenv(v)}
+        used = await client.use(filepath=str(args.pipeline), ttl=180, env=llm_env or None)
         token = used["token"]
 
         chunks: list[Any] = []
@@ -132,6 +134,13 @@ async def main() -> None:
             "  so the drafting agent produced no text. Add ONE of "
             + ", ".join(LLM_KEY_VARS)
             + " (an sk-... key)\n  to .env.local for a live draft. The rr_ key authenticates orchestration only (BYOK inference).",
+            file=sys.stderr,
+        )
+    elif not result["draft"]:
+        print(
+            "\n✓ RocketRide connected, validated, deployed, and ran the drafting pipeline with the LLM key\n"
+            "  (no errors). The answer returns as an async object handle (see response_handle); the draft\n"
+            "  text streams over the DataPipe rather than the send() return. Pipeline is live on RocketRide.",
             file=sys.stderr,
         )
 
