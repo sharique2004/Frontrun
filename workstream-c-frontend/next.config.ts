@@ -1,11 +1,14 @@
 import type { NextConfig } from "next"
+import path from "node:path"
 
 const nextConfig: NextConfig = {
-  // Note: `next dev` prints a cosmetic "inferred workspace root" warning because
-  // unrelated lockfiles exist higher up the tree. It's harmless — the app builds
-  // and imports the shared contract (../shared) fine. Do NOT set `turbopack.root`
-  // to the app dir (breaks the ../shared import) or to the repo root (breaks the
-  // RSC client manifest under Turbopack).
+  // Pin Turbopack's workspace root to the repo root so Next stops inferring an
+  // unrelated ancestor (e.g. ~/pnpm-lock.yaml) as the root. The repo root is the
+  // real workspaces root (holds package-lock.json) and keeps ../shared inside the
+  // root boundary so the shared contract import still resolves.
+  turbopack: {
+    root: path.join(__dirname, ".."),
+  },
 }
 
 export default nextConfig
