@@ -41,3 +41,56 @@ workstream-b-pipeline/
 ├── draft.ts          # generate EmailDraft
 └── rocketride.ts     # enrich→verify→draft as one MCP tool
 ```
+
+## Current implementation
+
+- `pollRecentFormD()` calls EDGAR full-text search for recent Form D filings and converts hits into `FormDSignal`.
+- `enrichLead()` runs You.com confirmation/research, Firecrawl company-page scraping, Nimble contact discovery, Hunter fallback email resolution, and Reoon confidence verification behind the shared provider interfaces.
+- Without a paid You.com API key, `YouResearchProvider` falls back to the free You.com MCP `you-search` endpoint.
+- `draftOutreach()` writes the first-touch recruiting agency email.
+- `runRocketRidePipeline()` is the single Track B tool-shaped entrypoint: `DETECTED → ENRICHED → DRAFTED`, optionally persisted through A's `StoreProvider`.
+
+## Env vars
+
+```bash
+EDGAR_USER_AGENT="Frontrun hackathon your@email.com"
+YOU_API_KEY="..."
+YDC_API_KEY="..."
+YOU_MCP_URL="https://api.you.com/mcp?profile=free"
+NIMBLE_API_KEY="..."
+HUNTER_API_KEY="..."
+REOON_API_KEY="..."
+FIRECRAWL_API_KEY="..."
+```
+
+All paid/keyed providers have safe demo fallbacks so A/C/D can integrate immediately. Add real keys for the live prize demo.
+
+## Run it
+
+```bash
+npm run track-b:run
+```
+
+The runner loads `.env.local`, polls EDGAR, researches with You.com MCP/API, enriches, verifies confidence, and prints the drafted lead JSON. It does not persist unless you pass `-- --persist`; use `-- --include-funds` to allow fund/LP filings in the feed.
+
+With `-- --persist`, Track B writes progressively so the frontend can render immediately:
+
+```text
+DETECTED
+POST Lead
+PATCH researchSummary
+PATCH email
+PATCH leadScore
+PATCH draftEmail
+```
+
+## RocketRide
+
+Start RocketRide locally, then run:
+
+```bash
+pip install -r workstream-b-pipeline/requirements.txt
+npm run track-b:rocketride
+```
+
+`rocketride_client.py` registers the root `pipeline.json`, sends a JSON payload into RocketRide, and prints the token, response, and task status. The pipeline entrypoint points back to `npm run track-b:run -- --json-stdin`, so RocketRide invokes the same verified Track B implementation.
