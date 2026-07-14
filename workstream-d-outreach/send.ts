@@ -251,8 +251,12 @@ async function resendSend(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${options.apiKey}`,
-      // Idempotency: retrying a send won't double-email the prospect.
-      "Idempotency-Key": `frontrun-${tagSafe(lead.id)}`,
+      // Idempotency: a network retry / double-click of the same draft won't
+      // double-email the prospect (same lead + same draft state → same key,
+      // deduped by Resend for 24h). Scoping the key to `updatedAt` means an
+      // INTENTIONAL re-send after the lead is re-drafted (which bumps updatedAt)
+      // is treated as a new send, not a replay of the old one.
+      "Idempotency-Key": `frontrun-${tagSafe(lead.id)}-${tagSafe(lead.updatedAt ?? "")}`,
     },
     body: JSON.stringify({
       from: `${options.fromName} <${options.fromEmail}>`,
