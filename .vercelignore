@@ -1,0 +1,8 @@
+# Deploy upload excludes (on top of built-ins: node_modules/.git/.next/dist/build/.env*/.insforge)
+**/node_modules/
+**/.venv/
+.rr-venv/
+.claude/
+.vercel/
+docs/
+*.log

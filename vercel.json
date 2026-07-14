@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "workstream-c-frontend/package.json",
+      "use": "@vercel/next"
+    }
+  ]
+}
